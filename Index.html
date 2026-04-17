@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>ESP Camera AI</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+
+<style>
+body {
+    margin: 0;
+    overflow: hidden;
+    background: black;
+}
+
+video, canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+</style>
+</head>
+
+<body>
+
+<video id="cam" autoplay playsinline></video>
+<canvas id="overlay"></canvas>
+
+<script>
+const video = document.getElementById("cam");
+const canvas = document.getElementById("overlay");
+const ctx = canvas.getContext("2d");
+
+async function startCam() {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.srcObject = stream;
+}
+
+async function runAI() {
+    const model = await cocoSsd.load();
+
+    video.onloadedmetadata = () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        detect(model);
+    };
+}
+
+async function detect(model) {
+    const predictions = await model.detect(video);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    predictions.forEach(p => {
+        if (p.class === "person" || p.class === "cat" || p.class === "dog") {
+
+            const [x, y, w, h] = p.bbox;
+
+            // ESP Box
+            ctx.strokeStyle = "red";
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x, y, w, h);
+
+            // Text
+            ctx.fillStyle = "red";
+            ctx.font = "18px Arial";
+            ctx.fillText(p.class + " (" + Math.round(p.score * 100) + "%)", x, y - 5);
+        }
+    });
+
+    requestAnimationFrame(() => detect(model));
+}
+
+startCam();
+runAI();
+</script>
+
+</body>
+</html>
