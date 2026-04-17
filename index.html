@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>ESP FIX PERFECT</title>
+<title>ESP PERFECT MOBILE</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
@@ -68,7 +68,7 @@ function resizeCanvas() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
-// ===== TÍNH SCALE + OFFSET (QUAN TRỌNG NHẤT) =====
+// ===== TÍNH SCALE + OFFSET =====
 function getTransform() {
     const vw = video.videoWidth;
     const vh = video.videoHeight;
@@ -81,11 +81,9 @@ function getTransform() {
     let scale, offsetX = 0, offsetY = 0;
 
     if (videoRatio > canvasRatio) {
-        // video rộng hơn → bị crop 2 bên
         scale = ch / vh;
         offsetX = (vw * scale - cw) / 2;
     } else {
-        // video cao hơn → bị crop trên/dưới
         scale = cw / vw;
         offsetY = (vh * scale - ch) / 2;
     }
@@ -109,8 +107,11 @@ async function detect() {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const centerX = window.innerWidth / 2;
-    const centerY = window.innerHeight / 2;
+    const dpr = window.devicePixelRatio || 1;
+
+    // ✅ TÂM CHUẨN MOBILE (FIX LỆCH)
+    const centerX = canvas.width / (2 * dpr);
+    const centerY = canvas.height / (2 * dpr);
 
     const { scale, offsetX, offsetY } = getTransform();
 
@@ -120,7 +121,6 @@ async function detect() {
 
             const [x, y, w, h] = p.bbox;
 
-            // ===== FIX CHUẨN 100% =====
             const sx = x * scale - offsetX;
             const sy = y * scale - offsetY;
             const sw = w * scale;
@@ -138,7 +138,7 @@ async function detect() {
             ctx.font = "16px Arial";
             ctx.fillText(p.class, sx, sy - 5);
 
-            // ===== LINE ESP (KHÔNG LỆCH) =====
+            // ===== LINE ESP (FIX CHUẨN) =====
             ctx.beginPath();
             ctx.strokeStyle = "lime";
             ctx.lineWidth = 2;
