@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>ESP PERFECT MOBILE</title>
+<title>ESP TOP LINE FIX</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
@@ -68,7 +68,7 @@ function resizeCanvas() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
-// ===== TÍNH SCALE + OFFSET =====
+// ===== SCALE + OFFSET =====
 function getTransform() {
     const vw = video.videoWidth;
     const vh = video.videoHeight;
@@ -109,9 +109,9 @@ async function detect() {
 
     const dpr = window.devicePixelRatio || 1;
 
-    // ✅ TÂM CHUẨN MOBILE (FIX LỆCH)
-    const centerX = canvas.width / (2 * dpr);
-    const centerY = canvas.height / (2 * dpr);
+    // 🔝 TOP CENTER (fix chuẩn)
+    const startX = canvas.width / (2 * dpr);
+    const startY = 0;
 
     const { scale, offsetX, offsetY } = getTransform();
 
@@ -138,11 +138,11 @@ async function detect() {
             ctx.font = "16px Arial";
             ctx.fillText(p.class, sx, sy - 5);
 
-            // ===== LINE ESP (FIX CHUẨN) =====
+            // ===== LINE ESP (TỪ TRÊN) =====
             ctx.beginPath();
             ctx.strokeStyle = "lime";
             ctx.lineWidth = 2;
-            ctx.moveTo(centerX, centerY);
+            ctx.moveTo(startX, startY);
             ctx.lineTo(targetX, targetY);
             ctx.stroke();
         }
