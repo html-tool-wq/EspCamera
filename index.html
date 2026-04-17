@@ -2,25 +2,31 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>ESP Mobile FIX</title>
+<title>ESP Mobile PRO FIX</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
 
 <style>
-body {
+html, body {
     margin: 0;
+    padding: 0;
     overflow: hidden;
     background: black;
 }
 
-/* FULL màn hình thật */
-video, canvas {
+/* FIX FULL SCREEN REAL MOBILE */
+#container {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+video, canvas {
+    position: absolute;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
 }
 </style>
@@ -28,8 +34,10 @@ video, canvas {
 
 <body>
 
-<video id="cam" autoplay playsinline></video>
-<canvas id="overlay"></canvas>
+<div id="container">
+    <video id="cam" autoplay playsinline></video>
+    <canvas id="overlay"></canvas>
+</div>
 
 <script>
 const video = document.getElementById("cam");
@@ -41,22 +49,33 @@ let model;
 // ===== CAMERA =====
 async function startCam() {
     const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" } // cam sau cho mobile
+        video: {
+            facingMode: "environment",
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+        }
     });
     video.srcObject = stream;
 }
 
-// ===== FIX SIZE CHUẨN MOBILE =====
+// ===== FIX CANVAS CHUẨN =====
 function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+
+    canvas.style.width = window.innerWidth + "px";
+    canvas.style.height = window.innerHeight + "px";
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
 // ===== LOAD AI =====
 async function loadAI() {
     model = await cocoSsd.load();
 
-    video.onloadedmetadata = () => {
+    video.onloadeddata = () => {
         resizeCanvas();
         detect();
     };
@@ -68,19 +87,17 @@ async function detect() {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 🎯 TÂM THẬT CỦA MÀN HÌNH
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+
+    const scaleX = window.innerWidth / video.videoWidth;
+    const scaleY = window.innerHeight / video.videoHeight;
 
     predictions.forEach(p => {
 
         if (p.class === "person" || p.class === "cat" || p.class === "dog") {
 
             const [x, y, w, h] = p.bbox;
-
-            // scale chuẩn theo màn hình
-            const scaleX = canvas.width / video.videoWidth;
-            const scaleY = canvas.height / video.videoHeight;
 
             const sx = x * scaleX;
             const sy = y * scaleY;
@@ -90,7 +107,7 @@ async function detect() {
             const targetX = sx + sw / 2;
             const targetY = sy + sh / 2;
 
-            // ===== ESP BOX =====
+            // ===== BOX =====
             ctx.strokeStyle = "red";
             ctx.lineWidth = 3;
             ctx.strokeRect(sx, sy, sw, sh);
@@ -99,13 +116,12 @@ async function detect() {
             ctx.font = "16px Arial";
             ctx.fillText(p.class, sx, sy - 5);
 
-            // ===== LINE ESP (CHUẨN FIX) =====
+            // ===== LINE ESP =====
             ctx.beginPath();
             ctx.strokeStyle = "lime";
             ctx.lineWidth = 2;
-
-            ctx.moveTo(centerX, centerY); // tâm màn hình thật
-            ctx.lineTo(targetX, targetY); // tới mục tiêu
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(targetX, targetY);
             ctx.stroke();
         }
 
@@ -118,9 +134,14 @@ async function detect() {
 startCam();
 loadAI();
 
-// fix xoay màn hình mobile
+// ===== FIX MOBILE =====
 window.addEventListener("resize", resizeCanvas);
 window.addEventListener("orientationchange", resizeCanvas);
+
+// FIX iOS full height
+window.addEventListener("load", () => {
+    document.body.style.height = window.innerHeight + "px";
+});
 </script>
 
 </body>
