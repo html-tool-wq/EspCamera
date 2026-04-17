@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>ESP Camera PRO</title>
+<title>ESP Mobile FIX</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
@@ -14,29 +14,14 @@ body {
     background: black;
 }
 
-/* FULL màn hình */
+/* FULL màn hình thật */
 video, canvas {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
     object-fit: cover;
-}
-
-/* GUI nhỏ */
-#menu {
-    position: fixed;
-    top: 10px;
-    left: 10px;
-    background: rgba(0,0,0,0.6);
-    padding: 10px;
-    border-radius: 10px;
-    color: white;
-    font-family: Arial;
-}
-button {
-    margin: 3px;
 }
 </style>
 </head>
@@ -46,33 +31,28 @@ button {
 <video id="cam" autoplay playsinline></video>
 <canvas id="overlay"></canvas>
 
-<div id="menu">
-    <button onclick="toggleESP()">ESP</button>
-    <button onclick="toggleLine()">LINE</button>
-</div>
-
 <script>
 const video = document.getElementById("cam");
 const canvas = document.getElementById("overlay");
 const ctx = canvas.getContext("2d");
 
-let showESP = true;
-let showLine = true;
 let model;
 
 // ===== CAMERA =====
 async function startCam() {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" } // cam sau cho mobile
+    });
     video.srcObject = stream;
 }
 
-// ===== RESIZE =====
+// ===== FIX SIZE CHUẨN MOBILE =====
 function resizeCanvas() {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 }
 
-// ===== AI =====
+// ===== LOAD AI =====
 async function loadAI() {
     model = await cocoSsd.load();
 
@@ -88,6 +68,7 @@ async function detect() {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // 🎯 TÂM THẬT CỦA MÀN HÌNH
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
 
@@ -97,6 +78,7 @@ async function detect() {
 
             const [x, y, w, h] = p.bbox;
 
+            // scale chuẩn theo màn hình
             const scaleX = canvas.width / video.videoWidth;
             const scaleY = canvas.height / video.videoHeight;
 
@@ -109,26 +91,22 @@ async function detect() {
             const targetY = sy + sh / 2;
 
             // ===== ESP BOX =====
-            if (showESP) {
-                ctx.strokeStyle = "red";
-                ctx.lineWidth = 3;
-                ctx.strokeRect(sx, sy, sw, sh);
+            ctx.strokeStyle = "red";
+            ctx.lineWidth = 3;
+            ctx.strokeRect(sx, sy, sw, sh);
 
-                ctx.fillStyle = "red";
-                ctx.font = "18px Arial";
-                ctx.fillText(p.class + " (" + Math.round(p.score*100)+"%)", sx, sy - 5);
-            }
+            ctx.fillStyle = "red";
+            ctx.font = "16px Arial";
+            ctx.fillText(p.class, sx, sy - 5);
 
-            // ===== LINE ESP =====
-            if (showLine) {
-                ctx.strokeStyle = "lime";
-                ctx.lineWidth = 2;
+            // ===== LINE ESP (CHUẨN FIX) =====
+            ctx.beginPath();
+            ctx.strokeStyle = "lime";
+            ctx.lineWidth = 2;
 
-                ctx.beginPath();
-                ctx.moveTo(centerX, centerY); // từ giữa màn hình
-                ctx.lineTo(targetX, targetY); // tới mục tiêu
-                ctx.stroke();
-            }
+            ctx.moveTo(centerX, centerY); // tâm màn hình thật
+            ctx.lineTo(targetX, targetY); // tới mục tiêu
+            ctx.stroke();
         }
 
     });
@@ -136,61 +114,13 @@ async function detect() {
     requestAnimationFrame(detect);
 }
 
-// ===== TOGGLE =====
-function toggleESP() {
-    showESP = !showESP;
-}
-function toggleLine() {
-    showLine = !showLine;
-}
-
 // ===== START =====
 startCam();
 loadAI();
+
+// fix xoay màn hình mobile
 window.addEventListener("resize", resizeCanvas);
-</script>
-
-</body>
-</html>}
-
-async function runAI() {
-    const model = await cocoSsd.load();
-
-    video.onloadedmetadata = () => {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-
-        detect(model);
-    };
-}
-
-async function detect(model) {
-    const predictions = await model.detect(video);
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    predictions.forEach(p => {
-        if (p.class === "person" || p.class === "cat" || p.class === "dog") {
-
-            const [x, y, w, h] = p.bbox;
-
-            // ESP Box
-            ctx.strokeStyle = "red";
-            ctx.lineWidth = 3;
-            ctx.strokeRect(x, y, w, h);
-
-            // Text
-            ctx.fillStyle = "red";
-            ctx.font = "18px Arial";
-            ctx.fillText(p.class + " (" + Math.round(p.score * 100) + "%)", x, y - 5);
-        }
-    });
-
-    requestAnimationFrame(() => detect(model));
-}
-
-startCam();
-runAI();
+window.addEventListener("orientationchange", resizeCanvas);
 </script>
 
 </body>
