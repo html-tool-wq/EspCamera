@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>ESP AI PRO</title>
+<title>ESP AI + GUI</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
@@ -13,6 +13,7 @@ html, body {
     padding: 0;
     overflow: hidden;
     background: black;
+    font-family: Arial;
 }
 
 #container {
@@ -26,6 +27,38 @@ video, canvas {
     height: 100%;
     object-fit: cover;
 }
+
+/* ===== GUI ===== */
+#menuBtn {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    z-index: 10;
+    cursor: pointer;
+}
+
+#menu {
+    position: fixed;
+    top: 50px;
+    right: 10px;
+    width: 200px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 10px;
+    border-radius: 10px;
+    display: none;
+    z-index: 10;
+}
+
+#menu label {
+    display: block;
+    margin: 6px 0;
+    font-size: 14px;
+}
 </style>
 </head>
 
@@ -36,6 +69,25 @@ video, canvas {
     <canvas id="overlay"></canvas>
 </div>
 
+<div id="menuBtn">⚙️</div>
+
+<div id="menu">
+    <label><input type="checkbox" id="toggleESP" checked> ESP Box</label>
+    <label><input type="checkbox" id="toggleLine" checked> ESP Line</label>
+    <label><input type="checkbox" id="toggleText" checked> Label</label>
+
+    <label>Line Width:
+        <input type="range" id="lineWidth" min="1" max="10" value="2">
+    </label>
+
+    <label>Line Mode:
+        <select id="lineMode">
+            <option value="top">Top</option>
+            <option value="center">Center</option>
+        </select>
+    </label>
+</div>
+
 <script>
 const video = document.getElementById("cam");
 const canvas = document.getElementById("overlay");
@@ -43,43 +95,52 @@ const ctx = canvas.getContext("2d");
 
 let model;
 
-// ===== DANH SÁCH VẬT THỂ SỐNG =====
+// ===== SETTINGS =====
+const settings = {
+    esp: true,
+    line: true,
+    text: true,
+    lineWidth: 2,
+    lineMode: "top"
+};
+
+// ===== GUI =====
+const menu = document.getElementById("menu");
+document.getElementById("menuBtn").onclick = () => {
+    menu.style.display = menu.style.display === "none" ? "block" : "none";
+};
+
+document.getElementById("toggleESP").onchange = e => settings.esp = e.target.checked;
+document.getElementById("toggleLine").onchange = e => settings.line = e.target.checked;
+document.getElementById("toggleText").onchange = e => settings.text = e.target.checked;
+document.getElementById("lineWidth").oninput = e => settings.lineWidth = e.target.value;
+document.getElementById("lineMode").onchange = e => settings.lineMode = e.target.value;
+
+// ===== OBJECT LIST =====
 const livingThings = [
     "person","cat","dog","bird","horse",
     "sheep","cow","elephant","bear","zebra","giraffe"
 ];
 
-// ===== MÀU THEO LOẠI =====
+// ===== COLOR =====
 function getColor(type){
-    const colors = {
+    return {
         person: "red",
         dog: "lime",
         cat: "cyan",
-        bird: "yellow",
-        horse: "orange",
-        sheep: "pink",
-        cow: "white",
-        elephant: "purple",
-        bear: "brown",
-        zebra: "black",
-        giraffe: "gold"
-    };
-    return colors[type] || "lime";
+        bird: "yellow"
+    }[type] || "white";
 }
 
 // ===== CAMERA =====
 async function startCam() {
     const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-            facingMode: "environment",
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-        }
+        video: { facingMode: "environment" }
     });
     video.srcObject = stream;
 }
 
-// ===== CANVAS DPI FIX =====
+// ===== DPI =====
 function resizeCanvas() {
     const dpr = window.devicePixelRatio || 1;
 
@@ -92,19 +153,16 @@ function resizeCanvas() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
-// ===== SCALE + OFFSET =====
+// ===== SCALE =====
 function getTransform() {
     const vw = video.videoWidth;
     const vh = video.videoHeight;
     const cw = window.innerWidth;
     const ch = window.innerHeight;
 
-    const videoRatio = vw / vh;
-    const canvasRatio = cw / ch;
-
     let scale, offsetX = 0, offsetY = 0;
 
-    if (videoRatio > canvasRatio) {
+    if (vw/vh > cw/ch) {
         scale = ch / vh;
         offsetX = (vw * scale - cw) / 2;
     } else {
@@ -133,9 +191,8 @@ async function detect() {
 
     const dpr = window.devicePixelRatio || 1;
 
-    // 🔝 TOP CENTER
-    const startX = canvas.width / (2 * dpr);
-    const startY = 0;
+    const centerX = canvas.width / (2 * dpr);
+    const centerY = canvas.height / (2 * dpr);
 
     const { scale, offsetX, offsetY } = getTransform();
 
@@ -156,22 +213,33 @@ async function detect() {
             const color = getColor(p.class);
 
             // ===== BOX =====
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 3;
-            ctx.strokeRect(sx, sy, sw, sh);
+            if(settings.esp){
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(sx, sy, sw, sh);
+            }
 
             // ===== TEXT =====
-            ctx.fillStyle = color;
-            ctx.font = "16px Arial";
-            ctx.fillText(p.class, sx, sy - 5);
+            if(settings.text){
+                ctx.fillStyle = color;
+                ctx.fillText(p.class, sx, sy - 5);
+            }
 
-            // ===== LINE ESP =====
-            ctx.beginPath();
-            ctx.strokeStyle = "lime";
-            ctx.lineWidth = 2;
-            ctx.moveTo(startX, startY);
-            ctx.lineTo(targetX, targetY);
-            ctx.stroke();
+            // ===== LINE =====
+            if(settings.line){
+                ctx.beginPath();
+                ctx.strokeStyle = "lime";
+                ctx.lineWidth = settings.lineWidth;
+
+                if(settings.lineMode === "top"){
+                    ctx.moveTo(centerX, 0);
+                } else {
+                    ctx.moveTo(centerX, centerY);
+                }
+
+                ctx.lineTo(targetX, targetY);
+                ctx.stroke();
+            }
         }
     });
 
@@ -183,7 +251,6 @@ startCam();
 loadAI();
 
 window.addEventListener("resize", resizeCanvas);
-window.addEventListener("orientationchange", resizeCanvas);
 </script>
 
 </body>
