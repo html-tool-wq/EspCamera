@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>ESP TOP LINE FIX</title>
+<title>ESP AI PRO</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
@@ -42,6 +42,30 @@ const canvas = document.getElementById("overlay");
 const ctx = canvas.getContext("2d");
 
 let model;
+
+// ===== DANH SÁCH VẬT THỂ SỐNG =====
+const livingThings = [
+    "person","cat","dog","bird","horse",
+    "sheep","cow","elephant","bear","zebra","giraffe"
+];
+
+// ===== MÀU THEO LOẠI =====
+function getColor(type){
+    const colors = {
+        person: "red",
+        dog: "lime",
+        cat: "cyan",
+        bird: "yellow",
+        horse: "orange",
+        sheep: "pink",
+        cow: "white",
+        elephant: "purple",
+        bear: "brown",
+        zebra: "black",
+        giraffe: "gold"
+    };
+    return colors[type] || "lime";
+}
 
 // ===== CAMERA =====
 async function startCam() {
@@ -109,7 +133,7 @@ async function detect() {
 
     const dpr = window.devicePixelRatio || 1;
 
-    // 🔝 TOP CENTER (fix chuẩn)
+    // 🔝 TOP CENTER
     const startX = canvas.width / (2 * dpr);
     const startY = 0;
 
@@ -117,7 +141,7 @@ async function detect() {
 
     predictions.forEach(p => {
 
-        if (p.class === "person" || p.class === "cat" || p.class === "dog") {
+        if (livingThings.includes(p.class)) {
 
             const [x, y, w, h] = p.bbox;
 
@@ -129,16 +153,19 @@ async function detect() {
             const targetX = sx + sw / 2;
             const targetY = sy + sh / 2;
 
+            const color = getColor(p.class);
+
             // ===== BOX =====
-            ctx.strokeStyle = "red";
+            ctx.strokeStyle = color;
             ctx.lineWidth = 3;
             ctx.strokeRect(sx, sy, sw, sh);
 
-            ctx.fillStyle = "red";
+            // ===== TEXT =====
+            ctx.fillStyle = color;
             ctx.font = "16px Arial";
             ctx.fillText(p.class, sx, sy - 5);
 
-            // ===== LINE ESP (TỪ TRÊN) =====
+            // ===== LINE ESP =====
             ctx.beginPath();
             ctx.strokeStyle = "lime";
             ctx.lineWidth = 2;
@@ -146,7 +173,6 @@ async function detect() {
             ctx.lineTo(targetX, targetY);
             ctx.stroke();
         }
-
     });
 
     requestAnimationFrame(detect);
